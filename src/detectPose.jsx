@@ -3,7 +3,7 @@ import Webcam from "react-webcam";
 import { FilesetResolver, PoseLandmarker } from "@mediapipe/tasks-vision";
 import * as tf from '@tensorflow/tfjs';
 
-// import scaler
+// import scaler ( Thay đổi tên file scaler_data.json là ok)
 import scalerData from "./scalers/scaler_data.json";
 
 // Draw line connect skeleton
@@ -18,6 +18,13 @@ export const PoseDetection = ({
   setCountRep,
   modelType
 }) => {
+  
+  // Copy 2 file model.json và bin vào thư mục public/models
+  const urlModelKeras = import.meta.env.BASE_URL + "public/models/model.json";
+  // Lấy theo nhưng góc đặt biệt theo số trên trang mediapipe
+  // Bài 1 shape thì không cần đổi cái này
+  const indices = [0, 11, 12, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32];
+
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
   const canvasCtx = canvasRef.current?.getContext("2d")
@@ -37,7 +44,6 @@ export const PoseDetection = ({
   const fpsUpdateInterval = 1000; // Update FPS every second
   let rafId = useRef(null);
 
-  const urlModelKeras = import.meta.env.BASE_URL + "public/models/model.json";
 
   // console.log("scaler", scaler)
 
@@ -119,6 +125,7 @@ export const PoseDetection = ({
       if (all_list_landmark.length > n_filter_mean) {
         all_list_landmark.shift();
       }
+
       if (all_list_landmark.length > 0) {
         for (let key in all_list_landmark[0]) {
           landmarkFilterMean[key] = {
@@ -172,9 +179,8 @@ export const PoseDetection = ({
         }
 
 
-        // model trả về 2 số
+        // model 2 shape trả về 2 số
         if (modelType == 2) {
-          const indices = [0, 11, 12, 14, 13, 16, 15, 23, 24];
           const combinedList = [];
           for (let i = 0; i < indices.length; i++) {
             combinedList.push(getElementsByIndices(xList, indices)[i]);
@@ -182,9 +188,6 @@ export const PoseDetection = ({
             combinedList.push(getElementsByIndices(zList, indices)[i]);
             combinedList.push(getElementsByIndices(vList, indices)[i]);
           }
-          // console.log("trainData", trainData)
-          // const dummyData = tf.tensor2d(trainData, [trainShape1, indices.length * 4]);
-
           const dummyData = normalizeData(
             combinedList,
             scalerData,
@@ -198,7 +201,7 @@ export const PoseDetection = ({
               let maxElement = 0;
               let maxIndex = 0;
               for (let i = 0; i < arr.length; i++) {
-                if (arr[i] > maxElement && arr[i] > 0.6) {
+                if (arr[i] > maxElement && arr[i] > 0.7) {
                   maxElement = arr[i];
                   maxIndex = i;
                 }
@@ -215,34 +218,64 @@ export const PoseDetection = ({
               for (let i = 0; i < checkPose.length; i++) {
                 checkPose[i] = 0;
               }
+              console.warn("==============================================================================")
               setCountRep((prev) => prev + 1);
             }
           });
           return
         }
 
-        // model trả về 3 số
-        else if (modelType == 3) {
-          // "NOSE",
-          // "LEFT_SHOULDER",
-          // "RIGHT_SHOULDER",
-          // "LEFT_ELBOW",
-          // "RIGHT_ELBOW",
-          // "LEFT_WRIST",
-          // "RIGHT_WRIST",
-          // "LEFT_HIP",
-          // "RIGHT_HIP",
-          // "LEFT_KNEE",
-          // "RIGHT_KNEE",
-          // "LEFT_ANKLE",
-          // "RIGHT_ANKLE",
-          // "LEFT_HEEL",
-          // "RIGHT_HEEL",
-          // "LEFT_FOOT_INDEX",
-          // "RIGHT_FOOT_INDEX",
-          const indices = [0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32];
+        // model 2 shape tra ve 3 so
+        if (modelType == 22) {
           const combinedList = [];
-          // console.log(getElementsByIndices(xList, indices))
+          for (let i = 0; i < indices.length; i++) {
+            combinedList.push(getElementsByIndices(xList, indices)[i]);
+            combinedList.push(getElementsByIndices(yList, indices)[i]);
+            combinedList.push(getElementsByIndices(zList, indices)[i]);
+            combinedList.push(getElementsByIndices(vList, indices)[i]);
+          }
+          const dummyData = normalizeData(
+            combinedList,
+            scalerData,
+            indices
+          );
+
+          const preds = await modelKeras.predict(dummyData);
+          await preds.array().then((predictions) => {
+            console.log("predictions", predictions[0])
+            function findMaxElementAndIndex(arr) {
+              let maxElement = 0;
+              let maxIndex = 0;
+              for (let i = 0; i < arr.length; i++) {
+                if (arr[i] > maxElement && arr[i] > 0.7) {
+                  maxElement = arr[i];
+                  maxIndex = i;
+                }
+              }
+              return { maxElement, maxIndex };
+            }
+            const maxPredictions = findMaxElementAndIndex(predictions[0])
+            if (maxPredictions.maxIndex == 0) {
+              checkPose[0] = 1;
+            } else if (maxPredictions.maxIndex == 1 && checkPose[0] == 1) {
+              checkPose[1] = 1;
+            } else if (maxPredictions.maxIndex == 2 && checkPose[0] == 1 && checkPose[1] == 1) {
+              checkPose[2] = 1;
+            }
+            if (checkPose.every((item) => item === 1)) {
+              for (let i = 0; i < checkPose.length; i++) {
+                checkPose[i] = 0;
+              }
+              console.warn("==============================================================================")
+              setCountRep((prev) => prev + 1);
+            }
+          });
+          return
+        }
+
+        // model 3 shape
+        else if (modelType == 3) {
+          const combinedList = [];
           for (let i = 0; i < indices.length; i++) {
             combinedList.push(getElementsByIndices(xList, indices)[i]);
             combinedList.push(getElementsByIndices(yList, indices)[i]);
@@ -262,10 +295,6 @@ export const PoseDetection = ({
             scalerData,
             indices
           );
-
-          // console.log("dummyData", dummyData)
-
-          // const dummyData = tf.tensor2d(trainData, [trainShape1, trainShape2]);
           const preds = await modelKeras.predict(dummyData);
           await preds.array().then((predictions) => {
             console.log("predictions", predictions[0])
@@ -281,15 +310,16 @@ export const PoseDetection = ({
               return { maxElement, maxIndex };
             }
             const maxPredictions = findMaxElementAndIndex(predictions[0])
-            if (maxPredictions.maxIndex == 0) {
+            if(maxPredictions.maxIndex == 0) {
               checkPose[0] = 1;
-            } else if (maxPredictions.maxIndex == 1 && checkPose[0] == 1) {
+            }else if(maxPredictions.maxIndex == 1 && checkPose[0] == 1) {
               checkPose[1] = 1;
             }
             if (checkPose.every((item) => item === 1)) {
               for (let i = 0; i < checkPose.length; i++) {
                 checkPose[i] = 0;
               }
+              console.warn("==============================================================================")
               setCountRep((prev) => prev + 1);
             }
           });
@@ -301,11 +331,8 @@ export const PoseDetection = ({
         const dummyData = tf.tensor2d([trainData], [1, trainShape2]);
         const preds = await modelKeras.predict(dummyData);
         await preds.array().then((predictions) => {
-          console.log(predictions[0])
-          if (predictions[0] != 1) {
-            setPercent((predictions[0] * 100));
-          }
-          const maxPredictions = predictions[0] >= 0.6 ? 1 : predictions[0] <= 0.2 ? 0 : -1;
+          console.log(predictions[0][0])
+          const maxPredictions = predictions[0][0] >= 0.6 ? 1 : predictions[0][0] <= 0.2 ? 0 : -1;
           if (maxPredictions == 0) {
             checkPose[0] = 1;
           } else if (maxPredictions == 1 && checkPose[0] == 1) {
@@ -315,6 +342,7 @@ export const PoseDetection = ({
             for (let i = 0; i < checkPose.length; i++) {
               checkPose[i] = 0;
             }
+            console.warn("==============================================================================")
             setCountRep((prev) => prev + 1);
           }
         });

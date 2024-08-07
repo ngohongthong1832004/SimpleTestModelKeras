@@ -33,13 +33,13 @@ function App() {
           gap : "50px"
         }}
       >
-        <h2
+        <h1
           style={{
             color: "red",
           }}
         >
           Reps : {countRep}
-        </h2>
+        </h1>
         <button onClick={() => setIsStartPose(!isStartPose)}>
           {isStartPose ? 'Stop' : 'Start'}
         </button>
@@ -48,8 +48,9 @@ function App() {
           onChange={(e) => setModelType(e.target.value)}
         >
           <option value="1">Model trả về 1 số của a Tuấn</option>
-          <option value="2">Model Trả về 2 số</option>
-          <option value="3">Model Trả về 3 số</option>
+          <option value="22">Model 2 shape trả về 3 số</option>
+          <option value="2">Model 2 shape trả về 2 số</option>
+          <option value="3">Model 3 shape</option>
         </select>
       </div>
     </>
