@@ -16,14 +16,16 @@ export const PoseDetection = ({
   isStartPose,
   setPercent,
   setCountRep,
-  modelType
+  modelType,
+  scalerType
 }) => {
   
+  // console.log(scaler)
   // Copy 2 file model.json và bin vào thư mục public/models
   const urlModelKeras = import.meta.env.BASE_URL + "public/models/model.json";
   // Lấy theo nhưng góc đặt biệt theo số trên trang mediapipe
   // Bài 1 shape thì không cần đổi cái này
-  const indices = [0, 11, 12, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32];
+  const indices = [0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32];
 
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
@@ -170,7 +172,7 @@ export const PoseDetection = ({
         const mean = scaler.mean_values;
         const variance = scaler.var_values;
         const scaledData = data.map((val, idx) => (val - mean[idx]) / Math.sqrt(variance[idx]));
-        return tf.tensor2d([scaledData], [1, indices.length * 4]);
+        return tf.tensor2d([scalerType ? scaledData : data], [1, indices.length * 4]);
       };
 
       if (modelKeras) {
@@ -279,15 +281,15 @@ export const PoseDetection = ({
           for (let i = 0; i < indices.length; i++) {
             combinedList.push(getElementsByIndices(xList, indices)[i]);
             combinedList.push(getElementsByIndices(yList, indices)[i]);
-            combinedList.push(getElementsByIndices(zList, indices)[i]);
-            combinedList.push(getElementsByIndices(vList, indices)[i]);
+            // combinedList.push(getElementsByIndices(zList, indices)[i]);
+            // combinedList.push(getElementsByIndices(vList, indices)[i]);
           }
 
           const normalizeData = (data, scaler, indices) => {
             const mean = scaler.mean_values;
             const variance = scaler.var_values;
-            const scaledData = data.map((val, idx) => (val - mean[idx]) / Math.sqrt(variance[idx]));
-            return tf.tensor3d([scaledData.map(a => [a])], [1, indices.length * 4, 1]);
+            const scaledData = data.map((val, idx) => [(val - mean[idx]) / Math.sqrt(variance[idx])]);
+            return tf.tensor3d([scalerType ? scaledData : data], [1, indices.length * 2, 1]);
           };
 
           const dummyData = normalizeData(
@@ -403,7 +405,7 @@ export const PoseDetection = ({
         rafId.current = null;
       }
     };
-  }, [isStartPose, modelType]);
+  }, [isStartPose, modelType, scalerType]);
 
   return (
     <div
